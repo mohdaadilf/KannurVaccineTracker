@@ -31,15 +31,14 @@ browser_header = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit
                                 'Chrome/56.0.2924.76 Safari/537.36'}
 
 #  for i in range(2):
-
+# For timing the loop
+loop_starts = time.time()
 while True:
     #  Getting the dates
     base = datetime.datetime.today()
     date_list = [base + datetime.timedelta(days=x) for x in range(numdays)]
     date_str = [x.strftime("%d-%m-%Y") for x in date_list]
     # print(base,"\n", date_list, "\n", date_str)
-    # For timing the loop
-    program_starts = time.time()
     for INP_DATE in date_str:
         #  URL for testing -
         #  URL = "https://cdn-api.co-vin.in/api/v2/appointment/sessions/public/findByDistrict?district_id=512&date=
@@ -93,5 +92,5 @@ while True:
     time.sleep(25)  # Using 7 requests (for 7 days) in 1 second. 100 requests per 5 minutes allowed. You do the math.
     #  timing the loop
     now = time.time()
-    print("It has been {} seconds since the loop started".format(now - program_starts))
+    print("It has been {} seconds since the loop started".format(now - loop_starts))
 
