@@ -1,7 +1,7 @@
 # Intro
 Initially made into a bot (yet to be deployed) to find Vaccine Centres in Kannur, Kerala for people under the Age 45 (and above 18).
 *  Made using the cowin-api [Click here  for Api Setu Site](https://apisetu.gov.in/public/marketplace/api/cowin)
-* Sends message using telegram. **Must have your own Telegram token and data to send message to telegram**. Refer to [Configuring Telegram Bot](configuring-telegram-bot) or just remove lines 5 to 11 as well as 78 to 85 (shown below):
+* Sends message using telegram. **Must have your own Telegram token and data to send message to telegram**. Refer to [Configuring Telegram Bot](#configuring-telegram-bot) or just remove lines 5 to 11 as well as 78 to 85 (shown below):
 ```python
 #  IMP
 #  get your token from botfather on Telegram and figure out the chat_id (Can be by sending a message in the created
