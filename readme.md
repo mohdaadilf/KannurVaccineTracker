@@ -1,7 +1,7 @@
 # Intro
 Initially made into a bot (yet to be deployed) to find Vaccine Centres in Kannur, Kerala for people under the Age 45 (and above 18).
 *  Made using the cowin-api [Click here  for Api Setu Site](https://apisetu.gov.in/public/marketplace/api/cowin)
-* Sends message using telegram. **Must have your own Telegram token and data to send message to telegram**. Refer to [Configuring Telegram Bot](#configuring-telegram-bot) or just remove lines 5 to 11 as well as 78 to 85 (shown below):
+* Sends message using telegram. **Must have your own Telegram token and data to send message to telegram**. Refer to [Configuring Telegram Bot](#configuring-telegram-bot) or just remove lines 5 to 11 as well as 81 to 90 (shown below):
 ```python
 #  IMP
 #  get your token from botfather on Telegram and figure out the chat_id (Can be by sending a message in the created
@@ -13,6 +13,7 @@ with open('keys.txt', 'r') as file:
 ```  
 
 ```python
+# Creating text to send to telegram
 txt = f'Name:{center["name"]}\nBlock Name:{center["block_name"]}\nPinCode:{center["pincode"]}\nMin Age:{center["min_age_limit"]}\nFree/Paid:{center["fee_type"]}\nAmount:{center["fee"]}\nAvailable Capacity:{center["available_capacity"]}\nVaccine:{center["vaccine"]}'
 to_url = 'https://api.telegram.org/bot{}/sendMessage?chat_id={}&text={}&parse_mode=HTML'.format(token, chat_id, txt)
 resp = requests.get(to_url)
@@ -26,8 +27,10 @@ Thought the video is a bit long, it does a good job of explaining what needs to 
 * The code can also be modified to check availability in any other district. The code can be modified to check availability of Covid-19 Vaccine for any district in India. To see all district codes, [click on this link and download the CSV file](https://api.covid19india.org/csv/latest/district_wise.csv) . On finding your required district, copy paste it into line number 23 in main.py
 * Fin.
 ```python
-dist_id = "INSERT_DISTRICT_IDEA HERE"
-#  For example:
+dist_id = "INSERT_DISTRICT_ID HERE"
+```
+For example:
+```python
 dist_id = "512
 ```
 ##### Additional Info
