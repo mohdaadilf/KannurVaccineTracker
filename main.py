@@ -109,7 +109,8 @@ while True:
                     print("No available slots on {}".format(INP_DATE))
             else:
                 print("Response not obtained from site.")
-    time.sleep(25)  # Using 7 requests (for 7 days) in 1 second. 100 requests per 5 minutes allowed. You do the math.
+    # time.sleep(25)  # Using 7 requests (for 7 days) in 1 second. 100 requests per 5 minutes allowed. You do the math.
+    time.sleep(60)  # Checking for slots every minute.
     #  timing the loop
     now = time.time()
     print("It has been {} seconds since the loop started\n".format(now - loop_starts))
