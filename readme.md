@@ -45,6 +45,7 @@ https://t.me/KannurVaccineTracer
 * [Additional documentation help](https://api.covid19india.org/)
 * [Credit goes this repo for all the main work!](https://github.com/bhattbhavesh91/cowin-vaccination-slot-availability)
 * Click here 👇🏻 if you want to get me a cup of coffee :))
+
 <a href="https://www.buymeacoffee.com/mohdaadilf" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/guidelines/download-assets-sm-1.svg" alt="Buy Me A Coffee" style="height: 50px !important;width: 174px !important !important; !important;" ></a>
 
 [![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2Fmohdaadilf%2FKannurVaccineTracker&count_bg=%23319E8E&title_bg=%23000000&icon=&icon_color=%23E7E7E7&title=Visitors%3A&edge_flat=false)](https://hits.seeyoufarm.com)
