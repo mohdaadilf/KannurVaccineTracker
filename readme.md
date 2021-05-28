@@ -1,8 +1,9 @@
 # Intro
-Initially made into a bot (yet to be deployed) to find Vaccine Centres in Kannur, Kerala for people under the Age 45 (and above 18).
+Initially made into a bot (yet to be deployed) to find Vaccine Centres in Kannur, Kerala for people under the Age 45 (and above 18). 
 * Made using the cowin-api [Click here  for Api Setu Site](https://apisetu.gov.in/public/marketplace/api/cowin)
-* Updates might not be real time as documentation mentions "data can be cached and may be upto 30 minutes old".	
-* Sends message using telegram. **Must have your own Telegram token and data to send message to telegram**. Refer to [Configuring Telegram Bot](#configuring-telegram-bot) or just remove lines 5 to 11 as well as 81 to 90 (shown below):
+* Updates might not be real time as documentation mentions "data can be cached and may be up to 30 minutes old".	
+* Sends message using telegram. **Must have your own Telegram token and data to send message to telegram**. Refer to [Configuring Telegram Bot](#configuring-telegram-bot) or just remove lines 5 to 11 as well as 88 to 97 (shown below):
+[Not updated]
 ```python
 #  IMP
 #  get your token from botfather on Telegram and figure out the chat_id (Can be by sending a message in the created
@@ -20,6 +21,7 @@ to_url = 'https://api.telegram.org/bot{}/sendMessage?chat_id={}&text={}&parse_mo
 resp = requests.get(to_url)
 print('Sent')
 ``` 
+* Wont send a message if availability of Vaccine < 10 (No point doing that)
 
 ### Configuring Telegram bot
 [Refer to this video]( https://www.youtube.com/watch?v=JBb4-Zeezss).
