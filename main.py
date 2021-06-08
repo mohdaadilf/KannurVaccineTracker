@@ -49,7 +49,7 @@ while True:
                   f"{dist_id}&date={INP_DATE}"
             response = requests.get(URL, headers=browser_header)
             response.raise_for_status()
-            # print("Result: ", response.text)
+            print("Result: ", response.text)
         except requests.exceptions.HTTPError as errh:
             print("Http Error:", errh)
         except requests.exceptions.ConnectionError as errc:
@@ -82,6 +82,8 @@ while True:
                             else:
                                 center["fee"] = '-'
                             print("\t Available Capacity: ", center["available_capacity"])
+                            print("\t\t Dose 1: ", center["available_capacity_dose1"])
+                            print("\t\t Dose 2: ", center["available_capacity_dose2"])
                             if center["vaccine"] != '':
                                 print("\t Vaccine: ", center["vaccine"])
                             else:
@@ -91,10 +93,12 @@ while True:
                             # Sending text message when availability of vaccine >= 10
                             # Creating text to send to telegram
 
-                            txt = f'Available on: {INP_DATE}\nName: {center["name"]}\nBlock ' \
+                            txt = f'Available on:  <b>{INP_DATE}</b>\nName: {center["name"]}\nBlock ' \
                                   f'Name: {center["block_name"]}\nPinCode: {center["pincode"]}\n' \
                                   f'Min Age: {center["min_age_limit"]}\nFree/Paid: {center["fee_type"]}\n' \
                                   f'Amount: {center["fee"]}\nAvailable Capacity: {center["available_capacity"]}\n' \
+                                  f'\t\tDose 1: {center["available_capacity_dose1"]}\n' \
+                                  f'\t\tDose 2: {center["available_capacity_dose2"]}\n' \
                                   f'Vaccine: {center["vaccine"]}\n\nhttps://selfregistration.cowin.gov.in/'
                             if center["available_capacity"] >= 10:
                                 to_url = 'https://api.telegram.org/bot{}/sendMessage?chat_id={}&text={}&parse_mode=' \
@@ -102,7 +106,7 @@ while True:
                                 try:
                                     resp = requests.get(to_url)
                                 except Exception:  # too broad, yes
-                                    print("Telegram message have not been sent");
+                                    print("Telegram message have not been sent")
                                 else:
                                     print("Telegram message have been sent")
                 else:
@@ -110,7 +114,7 @@ while True:
             else:
                 print("Response not obtained from site.")
     # time.sleep(25)  # Using 7 requests (for 7 days) in 1 second. 100 requests per 5 minutes allowed. You do the math.
-    time.sleep(60)  # Checking for slots every minute.
+    time.sleep(300)  # Checking for slots every 5 minutes.
     #  timing the loop
     now = time.time()
     print("It has been {} seconds since the loop started\n".format(now - loop_starts))
