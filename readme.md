@@ -4,26 +4,13 @@ Initially made into a bot (not deployed on any cloud yet) to find Vaccine Centre
 * Updates might not be real time as documentation mentions "data can be cached and may be up to 30 minutes old".	
 * Wont send a message if availability of Vaccine < 10 (No point doing that)
 
-* Sends message using telegram. **If you want to configure to your own requirments, you must have your own Telegram token and data to send message to telegram**. If you simply want to run the program, refer to [Configuring Telegram Bot](#configuring-telegram-bot) or just remove lines 5 to 13 as well as 93 to 107 (shown below):
+* Sends message using telegram. **If you want to configure to your own requirements, you must have your own Telegram token and other data to send message to telegram**. If you simply want to run the program, refer to [Configuring Telegram Bot](#configuring-telegram-bot) or just remove line 86, 102 in main.py (shown below):
 ```python
-#  IMP
-#  Get your token from botfather on Telegram and figure out the chat_id (Can be by sending a message in the created
-#  group and looking at the https://api.telegram.org/bot{token}/getUpdates page.
-
-with open('keys.txt', 'r') as file:
-    token = file.readline().strip('\n')
-    chat_id = file.readline()
+send_new_msg(txt, center)
 ```  
-
 ```python
-# Creating text to send to telegram
-txt = f'Name:{center["name"]}\nBlock Name:{center["block_name"]}\nPinCode:{center["pincode"]}\nMin Age:{center["min_age_limit"]}\nFree/Paid:{center["fee_type"]}\nAmount:{center["fee"]}\nAvailable Capacity:{center["available_capacity"]}\nVaccine:{center["vaccine"]}'
-to_url = 'https://api.telegram.org/bot{}/sendMessage?chat_id={}&text={}&parse_mode=HTML'.format(token, chat_id, txt)
-resp = requests.get(to_url)
-print('Sent')
-``` 
-
-
+telegram_required()
+```
 ### Configuring Telegram bot
 [Refer to this video]( https://www.youtube.com/watch?v=JBb4-Zeezss).
 Though the video is a bit long, it does a good job of explaining what needs to be done in order to configure the telegram bot.
