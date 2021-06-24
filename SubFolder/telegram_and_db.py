@@ -3,6 +3,8 @@ import requests
 import sqlite3
 import os
 from SubFolder import dist_id, browser_header
+from dateutil.parser import parse
+from datetime import date as dt
 
 global token
 global chat_id
@@ -75,7 +77,7 @@ def create_db():
 
 
 def check_in_db(center, txt):
-    """ Checks database if center is present; Updates if present, inserts if not.
+    """ Checks database if center is present; Updates if present.
     Args:
     ----------
     'center'[JSON] has the details of the current center passed
@@ -92,8 +94,9 @@ def check_in_db(center, txt):
     flag_exists = False
     msg_id = None
     conn = sqlite3.connect(database)
-    exist = conn.execute("select * from center where center_id = ?;", (center["center_id"],)).fetchone()
-    if exist is None:
+    exist = conn.execute("select * from center where center_id = ? and age_limit = ? and date = ?;",
+                         (center["center_id"], center["min_age_limit"], center["date"])).fetchone()
+    if not exist:
         # send a message when more than 10 vaccines are available
         if center["available_capacity"] >= 10:
             msg_id = send_new_msg(center, txt)
@@ -102,7 +105,7 @@ def check_in_db(center, txt):
             print("Inserted into DB")
 
         else:
-            print("Less than 10 V's. No message sent.")
+            print("Less than 10 V's. No message sent. No insertion into DB.")
 
         flag_exists = False
     else:
@@ -112,37 +115,36 @@ def check_in_db(center, txt):
         # if message sent but less than 10 available
         if exist[11] == 'Y' and center["available_capacity"] < 10:
             # sets msg_sent to N, sends final message saying less than 10 vaccines available.
-            conn.execute("UPDATE center SET date = ?, vaccine = ?, fee = ?, capacity = ?, time = ?, age_limit = ?, "
-                         "sent = ? where center_id = ?;", (center["date"], center["vaccine"], center["fee"],
-                                                           center["available_capacity"], time_, center["min_age_limit"],
-                                                           'N', center["center_id"]))
+            conn.execute("UPDATE center SET vaccine = ?, fee = ?, capacity = ?, time = ?, "
+                         "sent = ? where center_id = ? and age_limit = ?;", (center["vaccine"], center["fee"],
+                                                                             center["available_capacity"], time_,
+                                                                             'N', center["center_id"],
+                                                                             center["min_age_limit"]))
             txt = f'Less than 10 vaccines left'
-            final_msg(txt, exist[10])
+            replyto_msg(txt, exist[10])
 
-        # if message sent
-        elif exist[11] == 'Y':
-            # updates date, vaccines, fee, capacity, age
-            conn.execute("UPDATE center SET date = ?, vaccine = ?, fee = ?, capacity = ?, time = ?, age_limit = ?, "
-                         "sent = ? where center_id = ?;", (center["date"], center["vaccine"], center["fee"],
-                                                           center["available_capacity"], time_, center["min_age_limit"],
-                                                           'Y', center["center_id"]))
         # if message not sent.
         elif exist[11] == 'N':
             # Sets sent msg to Y and updates other columns if more than 10 vaccines available
             if center["available_capacity"] >= 10:
-                msg_id = send_new_msg(txt, center)
-                conn.execute("UPDATE center SET date = ?, vaccine = ?, fee = ?, capacity = ?, time = ?, age_limit = ?, "
-                             "sent = ?, msg_id = ? where center_id = ?;", (center["date"], center["vaccine"],
-                                                                           center["fee"], center["available_capacity"],
-                                                                           time_, center["min_age_limit"], 'Y', msg_id,
-                                                                           center["center_id"]))
+                msg_id = send_new_msg(center, txt)
+                conn.execute("UPDATE center SET vaccine = ?, fee = ?, capacity = ?, time = ?, "
+                             "sent = ?, msg_id = ? where center_id = ? and age_limit = ?;",
+                             (center["vaccine"], center["fee"], center["available_capacity"], time_, 'Y', msg_id,
+                              center["center_id"], center["min_age_limit"]))
             else:
-                print("Less than 10 V's. No message sent; No updations")
+                print("Less than 10 V's. No message sent; No updations.")
+
+        # if message sent
+        elif exist[11] == 'Y':
+            # updates date, vaccines, fee, capacity, age
+            conn.execute("UPDATE center SET vaccine = ?, fee = ?, capacity = ?, time = ?, "
+                         "sent = ? where center_id = ? and age_limit = ?;",
+                         (center["vaccine"], center["fee"], center["available_capacity"], time_, 'Y',
+                          center["center_id"], center["min_age_limit"]))
+
         conn.commit()
         print("Updated DB.")
-
-    #  The following is used to check the database every 30 minutes. Check cleaning_db() docum for more.
-
     conn.close()
 
 
@@ -170,20 +172,22 @@ def cleaning_db():
     print(f"Time: {current_time}, {half_hour_check}")
     if current_time > half_hour_check:
         current_time = time.time()
-        half_hour_check = current_time + 1800  # current + 1/2 an hour
+        half_hour_check = current_time + 1800  # current time + 1/2 an hour
         conn = sqlite3.connect(database)
         ligne_centers = []
         ligne_dates = []
         exist = conn.execute("select * from center where sent = ?;", ('Y',)).fetchall()
         if not exist:
             # No centers where sent_msg == 'Y'. Exit method.
-            return 'Empty query.'
+            print("Empty query")
+            return
         for row in exist:
+            print("DB cleaning.")
             # DB returned centers being appended to a list
             ligne_centers.append(list(row))
             if row[0] not in ligne_dates:
                 # Unique dates of the centers being appended to a list
-                ligne_dates.extend(row[0])
+                ligne_dates.append(row[0])
         for date in ligne_dates:
             # for each date, get the response.
             try:
@@ -204,6 +208,11 @@ def cleaning_db():
                     # response has data
                     resp_json = response.json()
                     resp_cen = resp_json["sessions"]
+                    '''
+                    What the next loop does:
+                    For all the centers, check if the data still holds True. If it doesn't, update the DB.
+                    As each center is checked, remove it from the list 'ligne_center'.
+                    '''
                     i = 0
                     while i < len(ligne_centers):
                         center = ligne_centers[i]
@@ -214,39 +223,45 @@ def cleaning_db():
                         else:
                             """
                             Here, the first for loop goes through all the centers received with the COWIN API.
-                            Checks the center_id and tries to get a match with the center_id of the center from DB.
-                            If slots are same, no changes required. Else update the DB, send final msg.
+                            Checks the center_id (along with age limit) and tries to get a match with the center_id of 
+                            the center from DB. If slots are same, no changes required. Else update the DB, 
+                            send final msg.
                             """
                             center_id = center[1]
                             slots = center[8]
                             msg_id = center[10]
                             j = 0
-                            while j < len(resp_cen):
-                                if resp_cen[j].get("center_id") == center[1]:
-                                    if resp_cen[j].get("available_capacity") == slots:
-                                        # If slots are equal, no changes to be made
+                            while j < len(resp_cen):  # looping through API result to get the center
+                                if resp_cen[j].get("center_id") == center[1] and \
+                                        resp_cen[j].get("min_age_limit") == center[5] and \
+                                        resp_cen[j].get("date") == center[0]:  # if center_id, age limit and date match
+
+                                    if resp_cen[j].get("available_capacity") == slots or \
+                                            resp_cen[j].get("available_capacity") >= 1:
+                                        # If slots are still available, no changes to be made
                                         print(f"Data intergrety good for {resp_cen[j].get('name')}")
                                         ligne_centers.pop(i)
                                         resp_cen.pop(j)
-                                        continue
+                                        break
                                     else:
-                                        # If slots are mismatched, set fee & capacity = 0, sent to 'N'.
+                                        # If slots are mismatched, ie not available status - then,
+                                        # set fee & capacity = 0, sent to 'N'.
                                         time_ = time.strftime("%H:%M:%S", time.localtime())
                                         conn.execute(
                                             "UPDATE center SET fee = ?, capacity = ?, time = ?, sent = ? where "
                                             "center_id = ?;", (0, 0, time_, 'N', center_id))
                                         conn.commit()
                                         txt = "Vaccines for this center is no longer available."
-                                        final_msg(txt, msg_id)
+                                        replyto_msg(txt, msg_id)
                                         ligne_centers.pop(i)
                                         resp_cen.pop(j)
-                                        continue
+                                        break
                                 else:
                                     j += 1  # increment loop
                         i += 1
 
                     # if centers aren't in the API response the following gets executed. This is important to update the
-                    # DB.
+                    # DB. Again, sometimes centers just dissapear off the API result.
                     k = 0
                     while k < len(ligne_centers):
                         center = ligne_centers[k]
@@ -258,10 +273,20 @@ def cleaning_db():
                             "center_id = ?;", (0, 0, time_, 'N', center_id))
                         conn.commit()
                         txt = "Vaccines for this center is no longer available."
-                        final_msg(txt, msg_id)
+                        replyto_msg(txt, msg_id)
                         ligne_centers.pop(k)
                         continue
+        # cleaning DB where the dates are yesterdays
+        exist = conn.execute("select * from center").fetchone()
+        if not exist:
+            print("Clean DB")
+        else:
+            today = dt.today().strftime('%d-%m-%Y')
+            if parse(exist[0]) < parse(today):
+                conn.execute("DELETE from center WHERE date = ?;", (exist[0],))
+                conn.commit()
         conn.close()
+        print("DB cleaning over.")
 
 
 def insert_into_db(center, msg_id, conn):
@@ -287,7 +312,7 @@ def insert_into_db(center, msg_id, conn):
     conn.commit()
 
 
-def send_new_msg(txt, center):
+def send_new_msg(center, txt):
     """Sends a new message to the Telegram Group
     Sends text message when availability of vaccine >= 10
     Parameters:
@@ -310,8 +335,12 @@ def send_new_msg(txt, center):
         return message_id
 
 
-def final_msg(txt, msg_id):
-    """Last final message for a center. Sent when Vaccines <= 10 or when vaccines no longer available.
+def replyto_msg(txt, msg_id):
+    """Can be either update or last final message for a center.
+
+    Sent when 1. Age limit has been changed or
+              2. Vaccines <= 10 or
+              3. When vaccines no longer available.
 
     Paramets:
     ---------
