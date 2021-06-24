@@ -1,38 +1,26 @@
 import requests
 import datetime
 import time
-from requests import exceptions
-from telegram_bits import telegram_required, send_new_msg, check_sent
-import csv
-import shutil
-
-def cowin_required():
-    global age
-    global numdays
-    global dist_id
-    global browser_header
-
-    # max age
-    age = 45
-
-    # Number of days to check ahead
-    numdays = 3
-
-    # district ID
-
-    dist_id = "297"
-
-    # header required due to changes to API
-    # header = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko)'
-    #               'Chrome/39.0.2171.95 Safari/537.36'}
-    browser_header = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) '
-                                    'Chrome/56.0.2924.76 Safari/537.36', 'Cache-Control': 'no-cache'}
+from SubFolder import age, numdays, dist_id, browser_header
+from SubFolder.telegram_and_db import telegram_required, check_in_db, cleaning_db
 
 
 def main_loop():
-    #  for i in range(2):
+    def convert_sec(n):
+        day = n // (24 * 3600)
+
+        n = n % (24 * 3600)
+        hour = n // 3600
+
+        n %= 3600
+        minutes = n // 60
+
+        n %= 60
+        seconds = n
+        print(f"It has been {day} days {hour} hours {minutes} minutes {seconds} seconds since the loop started\n")
+
     # For timing the loop
-    i = 0
+    i = 1
     loop_starts = time.time()
     while True:
         print(i, time.strftime("%H:%M:%S", time.localtime()))
@@ -49,12 +37,12 @@ def main_loop():
             # API to get planned vaccination sessions on a specific date in a given district. Reading API documentation
             # recommended
             try:
-                URL = f"https://cdn-api.co-vin.in/api/v2/appointment/sessions/public/findByDistrict?district_id=" \
+                url = f"https://cdn-api.co-vin.in/api/v2/appointment/sessions/public/findByDistrict?district_id=" \
                       f"{dist_id}&date={INP_DATE}"
-                response = requests.get(URL, headers=browser_header)
+                response = requests.get(url, headers=browser_header)
                 response.raise_for_status()
-                with open ("result.csv", 'a+') as f:
-                    f.write(f'{str(i)} {INP_DATE} {response.text}\n')
+                with open("miscellaneous/results.csv", 'a+') as f:  # This is not important. To save space remove these
+                    f.write(f'{str(i)} {INP_DATE} {response.text}\n')  # two lines
                 #  print(f"Result: {INP_DATE}-{response.text}")
             except requests.exceptions.HTTPError as errh:
                 print("Http Error:", errh)
@@ -86,23 +74,24 @@ def main_loop():
                                       f'\t\tDose 2: {center["available_capacity_dose2"]}\n' \
                                       f'Vaccine: {center["vaccine"]}\n\nhttps://selfregistration.cowin.gov.in/'
                                 print(txt)
-                                #
-                                #  check_sent(txt, center, INP_DATE)
-                                send_new_msg(txt, center)
+
+                                check_in_db(center, txt)
+                                # send_new_msg(txt, center)
                     else:
                         print("No available slots on {}".format(INP_DATE))
                 else:
                     print("Response not obtained from site.")
         # time.sleep(25)  # Using 7 requests (for 7 days) in 1 second. 100 requests per 5 minutes allowed. You do the
         # math.
+        cleaning_db()
         time.sleep(300)  # Checking for slots every 5 minutes.
         #  timing the loop
         now = time.time()
-        print("It has been {} seconds since the loop started\n".format(now - loop_starts))
+        #  print("It has been {} seconds since the loop started\n".format(now - loop_starts))
+        convert_sec(now - loop_starts)
         i += 1
 
 
 if __name__ == "__main__":
     telegram_required()
-    cowin_required()
     main_loop()

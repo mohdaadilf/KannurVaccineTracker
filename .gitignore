@@ -1,11 +1,5 @@
-keys.txt
-bot.py
+SubFolder/keys.txt
+SubFolder/centers.db
 .idea/
 __pycache__/
-vpngate.py
-Other work/
-sent.csv
-tempfile.csv
-result.csv
-temp_file.csv
-blah.csv
+
