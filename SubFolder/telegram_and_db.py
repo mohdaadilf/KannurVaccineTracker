@@ -219,6 +219,7 @@ def cleaning_db():
                     i = 0
                     while i < len(ligne_centers):
                         center = ligne_centers[i]
+                        flag_exists = False
                         # for each center in db
                         if center[0] != date:
                             # Center isn't giving slots on said date? Then just continue and check next center.
@@ -247,6 +248,7 @@ def cleaning_db():
                                         print(f"Data intergrety good for {resp_cen[j].get('name')}")
                                         ligne_centers.pop(i)
                                         resp_cen.pop(j)
+                                        flag_exists = True
                                         break
                                     else:
                                         # If slots are mismatched, ie not available status - then,
@@ -258,13 +260,15 @@ def cleaning_db():
                                                                                             api_age, date))
                                         conn.commit()
                                         txt = "Vaccines for this center is no longer available."
+                                        replyto_msg(txt, msg_id)
                                         ligne_centers.pop(i)
                                         resp_cen.pop(j)
-                                        replyto_msg(txt, msg_id)
+                                        flag_exists = True
                                         break
                                 else:
                                     j += 1  # increment loop
-                        i += 1
+                        if flag_exists is False:
+                            i += 1
 
         # If centers aren't in the API response the following gets executed. Again, sometimes centers just dissapear off
         # the API result. The following is important to update the DB.
