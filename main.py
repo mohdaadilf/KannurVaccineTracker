@@ -74,7 +74,6 @@ def main_loop():
                                       f'\t\tDose 2: {center["available_capacity_dose2"]}\n' \
                                       f'Vaccine: {center["vaccine"]}\n\nhttps://selfregistration.cowin.gov.in/'
                                 print(txt)
-
                                 check_in_db(center, txt)
                                 # send_new_msg(txt, center)
                     else:

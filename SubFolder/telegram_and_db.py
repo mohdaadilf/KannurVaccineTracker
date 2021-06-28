@@ -8,7 +8,7 @@ from datetime import date as dt
 
 global token
 global chat_id
-half_hour_check = time.time() + 1830  # used to check database for cleaning. Refer to check_in_db() docum for more.
+half_hour_check = time.time()  # used to check database for cleaning. Refer to check_in_db() docum for more.
 
 basedir = os.path.dirname(os.path.abspath(__file__))
 database = basedir + '\\centers.db'
@@ -116,10 +116,13 @@ def check_in_db(center, txt):
         if exist[11] == 'Y' and center["available_capacity"] < 10:
             # sets msg_sent to N, sends final message saying less than 10 vaccines available.
             conn.execute("UPDATE center SET vaccine = ?, fee = ?, capacity = ?, time = ?, "
-                         "sent = ? where center_id = ? and age_limit = ?;", (center["vaccine"], center["fee"],
-                                                                             center["available_capacity"], time_,
-                                                                             'N', center["center_id"],
-                                                                             center["min_age_limit"]))
+                         "sent = ? where center_id = ? and age_limit = ? and date = ?;", (center["vaccine"],
+                                                                                          center["fee"],
+                                                                                          center["available_capacity"],
+                                                                                          time_, 'N',
+                                                                                          center["center_id"],
+                                                                                          center["min_age_limit"],
+                                                                                          center["date"]))
             txt = f'Less than 10 vaccines left'
             replyto_msg(txt, exist[10])
 
@@ -129,9 +132,9 @@ def check_in_db(center, txt):
             if center["available_capacity"] >= 10:
                 msg_id = send_new_msg(center, txt)
                 conn.execute("UPDATE center SET vaccine = ?, fee = ?, capacity = ?, time = ?, "
-                             "sent = ?, msg_id = ? where center_id = ? and age_limit = ?;",
+                             "sent = ?, msg_id = ? where center_id = ? and age_limit = ? and date = ?;",
                              (center["vaccine"], center["fee"], center["available_capacity"], time_, 'Y', msg_id,
-                              center["center_id"], center["min_age_limit"]))
+                              center["center_id"], center["min_age_limit"], center["date"]))
             else:
                 print("Less than 10 V's. No message sent; No updations.")
 
@@ -139,9 +142,9 @@ def check_in_db(center, txt):
         elif exist[11] == 'Y':
             # updates date, vaccines, fee, capacity, age
             conn.execute("UPDATE center SET vaccine = ?, fee = ?, capacity = ?, time = ?, "
-                         "sent = ? where center_id = ? and age_limit = ?;",
+                         "sent = ? where center_id = ? and age_limit = ? and date = ?;",
                          (center["vaccine"], center["fee"], center["available_capacity"], time_, 'Y',
-                          center["center_id"], center["min_age_limit"]))
+                          center["center_id"], center["min_age_limit"], center["date"]))
 
         conn.commit()
         print("Updated DB.")
@@ -163,7 +166,7 @@ def cleaning_db():
     Parameters:
     ----------
     ligne stands for row in French.
-    'ligne_centers' is for centers in DB which has 'sent_msg' to 'Y'
+    'ligne_centers' is for centers in DB which has 'sent_msg' as 'Y'
     'ligne_dates' is for unique dates.
     :return: Empty if No centers where sent_msg == 'Y'
     """
@@ -182,7 +185,7 @@ def cleaning_db():
             print("Empty query")
             return
         for row in exist:
-            print("DB cleaning.")
+            print(f"DB cleaning. {row}")
             # DB returned centers being appended to a list
             ligne_centers.append(list(row))
             if row[0] not in ligne_dates:
@@ -219,6 +222,7 @@ def cleaning_db():
                         # for each center in db
                         if center[0] != date:
                             # Center isn't giving slots on said date? Then just continue and check next center.
+                            i += 1
                             continue
                         else:
                             """
@@ -232,12 +236,13 @@ def cleaning_db():
                             msg_id = center[10]
                             j = 0
                             while j < len(resp_cen):  # looping through API result to get the center
-                                if resp_cen[j].get("center_id") == center[1] and \
-                                        resp_cen[j].get("min_age_limit") == center[5] and \
-                                        resp_cen[j].get("date") == center[0]:  # if center_id, age limit and date match
-
-                                    if resp_cen[j].get("available_capacity") == slots or \
-                                            resp_cen[j].get("available_capacity") >= 1:
+                                api_center = resp_cen[j].get("center_id")
+                                api_age = resp_cen[j].get("min_age_limit")
+                                api_date = resp_cen[j].get("date")
+                                if api_center == center[1] and api_age == center[5] and api_date == center[0]:
+                                    # if center_id, age limit and date match
+                                    api_slots = resp_cen[j].get("available_capacity")
+                                    if api_slots == slots or api_slots >= 1:
                                         # If slots are still available, no changes to be made
                                         print(f"Data intergrety good for {resp_cen[j].get('name')}")
                                         ligne_centers.pop(i)
@@ -249,41 +254,47 @@ def cleaning_db():
                                         time_ = time.strftime("%H:%M:%S", time.localtime())
                                         conn.execute(
                                             "UPDATE center SET fee = ?, capacity = ?, time = ?, sent = ? where "
-                                            "center_id = ?;", (0, 0, time_, 'N', center_id))
+                                            "center_id = ? and age_limit = and date = ?;", (0, 0, time_, 'N', center_id,
+                                                                                            api_age, date))
                                         conn.commit()
                                         txt = "Vaccines for this center is no longer available."
-                                        replyto_msg(txt, msg_id)
                                         ligne_centers.pop(i)
                                         resp_cen.pop(j)
+                                        replyto_msg(txt, msg_id)
                                         break
                                 else:
                                     j += 1  # increment loop
                         i += 1
 
-                    # if centers aren't in the API response the following gets executed. This is important to update the
-                    # DB. Again, sometimes centers just dissapear off the API result.
-                    k = 0
-                    while k < len(ligne_centers):
-                        center = ligne_centers[k]
-                        center_id = center[1]
-                        msg_id = center[10]
-                        time_ = time.strftime("%H:%M:%S", time.localtime())
-                        conn.execute(
-                            "UPDATE center SET fee = ?, capacity = ?, time = ?, sent = ? where "
-                            "center_id = ?;", (0, 0, time_, 'N', center_id))
-                        conn.commit()
-                        txt = "Vaccines for this center is no longer available."
-                        replyto_msg(txt, msg_id)
-                        ligne_centers.pop(k)
-                        continue
+        # If centers aren't in the API response the following gets executed. Again, sometimes centers just dissapear off
+        # the API result. The following is important to update the DB.
+        k = 0
+        while k < len(ligne_centers):
+            center = ligne_centers[k]
+            center_id = center[1]
+            msg_id = center[10]
+            time_ = time.strftime("%H:%M:%S", time.localtime())
+            conn.execute(
+                "UPDATE center SET fee = ?, capacity = ?, time = ?, sent = ? where "
+                "center_id = ?;", (0, 0, time_, 'N', center_id))
+            conn.commit()
+            txt = "Vaccines for this center is no longer available."
+            replyto_msg(txt, msg_id)
+            ligne_centers.pop(k)
+            continue
+
         # cleaning DB where the dates are yesterdays
-        exist = conn.execute("select * from center").fetchone()
+        exist = conn.execute("select * from center").fetchall()
         if not exist:
             print("Clean DB")
         else:
+            #  This section can be improved.
             today = dt.today().strftime('%d-%m-%Y')
-            if parse(exist[0]) < parse(today):
-                conn.execute("DELETE from center WHERE date = ?;", (exist[0],))
+            yest_parsed = parse(exist[0][0])
+            date = exist[0][0]
+            toda_parsed = parse(today)
+            if yest_parsed < toda_parsed:
+                conn.execute("DELETE from center WHERE date = ?;", (date,))
                 conn.commit()
         conn.close()
         print("DB cleaning over.")
