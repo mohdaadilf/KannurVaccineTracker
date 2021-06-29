@@ -94,8 +94,8 @@ def check_in_db(center, txt):
     flag_exists = False
     msg_id = None
     conn = sqlite3.connect(database)
-    exist = conn.execute("select * from center where center_id = ? and age_limit = ? and date = ?;",
-                         (center["center_id"], center["min_age_limit"], center["date"])).fetchone()
+    exist = conn.execute("select * from center where center_id = ? and age_limit = ? and vaccine = ? and date = ?;",
+                         (center["center_id"], center["min_age_limit"], center["vaccine"], center["date"])).fetchone()
     if not exist:
         # send a message when more than 10 vaccines are available
         if center["available_capacity"] >= 10:
@@ -115,9 +115,8 @@ def check_in_db(center, txt):
         # if message sent but less than 10 available
         if exist[11] == 'Y' and center["available_capacity"] < 10:
             # sets msg_sent to N, sends final message saying less than 10 vaccines available.
-            conn.execute("UPDATE center SET vaccine = ?, fee = ?, capacity = ?, time = ?, "
-                         "sent = ? where center_id = ? and age_limit = ? and date = ?;", (center["vaccine"],
-                                                                                          center["fee"],
+            conn.execute("UPDATE center SET fee = ?, capacity = ?, time = ?, "
+                         "sent = ? where center_id = ? and age_limit = ? and date = ?;", (center["fee"],
                                                                                           center["available_capacity"],
                                                                                           time_, 'N',
                                                                                           center["center_id"],
@@ -131,9 +130,9 @@ def check_in_db(center, txt):
             # Sets sent msg to Y and updates other columns if more than 10 vaccines available
             if center["available_capacity"] >= 10:
                 msg_id = send_new_msg(center, txt)
-                conn.execute("UPDATE center SET vaccine = ?, fee = ?, capacity = ?, time = ?, "
+                conn.execute("UPDATE center SET fee = ?, capacity = ?, time = ?, "
                              "sent = ?, msg_id = ? where center_id = ? and age_limit = ? and date = ?;",
-                             (center["vaccine"], center["fee"], center["available_capacity"], time_, 'Y', msg_id,
+                             (center["fee"], center["available_capacity"], time_, 'Y', msg_id,
                               center["center_id"], center["min_age_limit"], center["date"]))
             else:
                 print("Less than 10 V's. No message sent; No updations.")
@@ -141,9 +140,9 @@ def check_in_db(center, txt):
         # if message sent
         elif exist[11] == 'Y':
             # updates date, vaccines, fee, capacity, age
-            conn.execute("UPDATE center SET vaccine = ?, fee = ?, capacity = ?, time = ?, "
+            conn.execute("UPDATE center SET fee = ?, capacity = ?, time = ?, "
                          "sent = ? where center_id = ? and age_limit = ? and date = ?;",
-                         (center["vaccine"], center["fee"], center["available_capacity"], time_, 'Y',
+                         (center["fee"], center["available_capacity"], time_, 'Y',
                           center["center_id"], center["min_age_limit"], center["date"]))
 
         conn.commit()
@@ -235,12 +234,15 @@ def cleaning_db():
                             center_id = center[1]
                             slots = center[8]
                             msg_id = center[10]
+                            vacc = center[6]
                             j = 0
                             while j < len(resp_cen):  # looping through API result to get the center
                                 api_center = resp_cen[j].get("center_id")
                                 api_age = resp_cen[j].get("min_age_limit")
                                 api_date = resp_cen[j].get("date")
-                                if api_center == center[1] and api_age == center[5] and api_date == center[0]:
+                                api_vaccine = resp_cen[j].get("vaccine")
+                                if api_center == center[1] and api_age == center[5] and api_date == center[0] and \
+                                        api_vaccine == vacc:
                                     # if center_id, age limit and date match
                                     api_slots = resp_cen[j].get("available_capacity")
                                     if api_slots == slots or api_slots >= 1:
@@ -253,11 +255,15 @@ def cleaning_db():
                                     else:
                                         # If slots are mismatched, ie not available status - then,
                                         # set fee & capacity = 0, sent to 'N'.
+                                        print("API result missmatch")
                                         time_ = time.strftime("%H:%M:%S", time.localtime())
-                                        conn.execute(
-                                            "UPDATE center SET fee = ?, capacity = ?, time = ?, sent = ? where "
-                                            "center_id = ? and age_limit = and date = ?;", (0, 0, time_, 'N', center_id,
-                                                                                            api_age, date))
+                                        conn.execute("UPDATE center SET fee = ?, capacity = ?, time = ?, sent = ? "
+                                                     "where center_id = ? and age_limit = ? and date = ?;", (0, 0,
+                                                                                                             time_,
+                                                                                                             'N',
+                                                                                                             center_id,
+                                                                                                             api_age,
+                                                                                                             date))
                                         conn.commit()
                                         txt = "Vaccines for this center is no longer available."
                                         replyto_msg(txt, msg_id)
@@ -274,6 +280,7 @@ def cleaning_db():
         # the API result. The following is important to update the DB.
         k = 0
         while k < len(ligne_centers):
+            print("Not in API result")
             center = ligne_centers[k]
             center_id = center[1]
             msg_id = center[10]
@@ -368,9 +375,9 @@ def replyto_msg(txt, msg_id):
     try:
         resp = requests.get(to_url)
     except Exception:  # too broad, yes
-        print("Telegram message have not been sent\n")
+        print("Telegram message have not been sent.")
     else:
-        print("Telegram message have been sent\n")
+        print("Telegram message have been sent.")
         json = resp.json()
         message_id = json["result"]["message_id"]
         return message_id
