@@ -122,7 +122,7 @@ def check_in_db(center, txt):
                                                                                           center["center_id"],
                                                                                           center["min_age_limit"],
                                                                                           center["date"]))
-            txt = f'Less than 10 vaccines left'
+            txt = f'Less than 10 vaccines left for {center["name"]}'
             replyto_msg(txt, exist[10])
 
         # if message not sent.
@@ -265,7 +265,7 @@ def cleaning_db():
                                                                                                              api_age,
                                                                                                              date))
                                         conn.commit()
-                                        txt = "Vaccines for this center is no longer available."
+                                        txt = f"Vaccines for center {center[2]} is no longer available."
                                         replyto_msg(txt, msg_id)
                                         ligne_centers.pop(i)
                                         resp_cen.pop(j)
@@ -289,7 +289,7 @@ def cleaning_db():
                 "UPDATE center SET fee = ?, capacity = ?, time = ?, sent = ? where "
                 "center_id = ?;", (0, 0, time_, 'N', center_id))
             conn.commit()
-            txt = "Vaccines for this center is no longer available."
+            txt = f"Vaccines for center {center[2]} is no longer available."
             replyto_msg(txt, msg_id)
             ligne_centers.pop(k)
             continue

@@ -2,4 +2,4 @@ SubFolder/keys.txt
 SubFolder/centers.db
 .idea/
 __pycache__/
-
+env/

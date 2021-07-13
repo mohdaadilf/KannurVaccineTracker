@@ -66,10 +66,11 @@ def main_loop():
                                     center["vaccine"] = '-'
                                 if center['fee_type'] == "Free":
                                     center["fee"] = 0
-                                txt = f'Available on:  <b>{INP_DATE}</b>\nName: {center["name"]}\nBlock ' \
-                                      f'Name: {center["block_name"]}\nPinCode: {center["pincode"]}\n' \
-                                      f'Min Age: {center["min_age_limit"]}\nFree/Paid: {center["fee_type"]}\n' \
-                                      f'Amount: {center["fee"]}\nAvailable Capacity: {center["available_capacity"]}\n' \
+                                txt = f'Available on:  <b>{INP_DATE}</b>\nName: {center["name"]}\nAddress: ' \
+                                      f'{center["address"]}\nBlock Name: {center["block_name"]}\nPinCode: ' \
+                                      f'{center["pincode"]}\nMin Age: {center["min_age_limit"]}\nFree/Paid: ' \
+                                      f'{center["fee_type"]}\nAmount: {center["fee"]}\nAvailable Capacity: ' \
+                                      f'{center["available_capacity"]}\n' \
                                       f'\t\tDose 1: {center["available_capacity_dose1"]}\n' \
                                       f'\t\tDose 2: {center["available_capacity_dose2"]}\n' \
                                       f'Vaccine: {center["vaccine"]}\n\nhttps://selfregistration.cowin.gov.in/'
@@ -83,6 +84,7 @@ def main_loop():
         # time.sleep(25)  # Using 7 requests (for 7 days) in 1 second. 100 requests per 5 minutes allowed. You do the
         # math.
         cleaning_db()
+        print("End:", i, time.strftime("%H:%M:%S", time.localtime()))
         time.sleep(300)  # Checking for slots every 5 minutes.
         #  timing the loop
         now = time.time()

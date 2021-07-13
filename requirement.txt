@@ -1,2 +1,2 @@
-sqlite3
 requests
+python-dateutil
