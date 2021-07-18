@@ -1,6 +1,7 @@
-import requests
-import datetime
-import time
+from requests import get
+from requests.exceptions import HTTPError, ConnectionError, Timeout, RequestException
+from time import time, strftime, localtime, sleep
+from datetime import datetime, timedelta
 from SubFolder import age, numdays, dist_id, browser_header
 from SubFolder.telegram_and_db import telegram_required, check_in_db, cleaning_db
 
@@ -21,12 +22,12 @@ def main_loop():
 
     # For timing the loop
     i = 1
-    loop_starts = time.time()
+    loop_starts = time()
     while True:
-        print(i, time.strftime("%H:%M:%S", time.localtime()))
+        print(i, strftime("%H:%M:%S", localtime()))
         #  Getting the dates
-        base = datetime.datetime.today()
-        date_list = [base + datetime.timedelta(days=x) for x in range(numdays)]
+        base = datetime.today()
+        date_list = [base + timedelta(days=x) for x in range(numdays)]
         date_str = [x.strftime("%d-%m-%Y") for x in date_list]
         # print(base,"\n", date_list, "\n", date_str)
         for INP_DATE in date_str:
@@ -39,19 +40,21 @@ def main_loop():
             try:
                 url = f"https://cdn-api.co-vin.in/api/v2/appointment/sessions/public/findByDistrict?district_id=" \
                       f"{dist_id}&date={INP_DATE}"
-                response = requests.get(url, headers=browser_header)
+                response = get(url, headers=browser_header)
                 response.raise_for_status()
                 with open("miscellaneous/results.csv", 'a+') as f:  # This is not important. To save space remove these
                     f.write(f'{str(i)} {INP_DATE} {response.text}\n')  # two lines
                 #  print(f"Result: {INP_DATE}-{response.text}")
-            except requests.exceptions.HTTPError as errh:
+            except HTTPError as errh:
                 print("Http Error:", errh)
-            except requests.exceptions.ConnectionError as errc:
+                print(errh.response.text)
+            except ConnectionError as errc:
                 print("Error Connecting:", errc)
-            except requests.exceptions.Timeout as errt:
+            except Timeout as errt:
                 print("Timeout Error:", errt)
-            except requests.exceptions.RequestException as err:
+            except RequestException as err:
                 print("Oops: Something Else", err)
+
             else:
                 # will now only been displayed when you DO have a 200
                 print(f'{INP_DATE} Response code: {response.status_code}')
@@ -84,10 +87,10 @@ def main_loop():
         # time.sleep(25)  # Using 7 requests (for 7 days) in 1 second. 100 requests per 5 minutes allowed. You do the
         # math.
         cleaning_db()
-        print("End:", i, time.strftime("%H:%M:%S", time.localtime()))
-        time.sleep(300)  # Checking for slots every 5 minutes.
+        print("End:", i, strftime("%H:%M:%S", localtime()))
+        sleep(150)  # Checking for slots every 2.5 minutes.
         #  timing the loop
-        now = time.time()
+        now = time()
         #  print("It has been {} seconds since the loop started\n".format(now - loop_starts))
         convert_sec(now - loop_starts)
         i += 1

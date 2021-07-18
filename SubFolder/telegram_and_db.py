@@ -1,16 +1,18 @@
-import time
-import requests
 import sqlite3
-import os
+from time import time, strftime, localtime
+from requests import get
+from requests.exceptions import ConnectionError, Timeout, RequestException, HTTPError
+from sqlite3 import connect
 from SubFolder import dist_id, browser_header
 from dateutil.parser import parse
 from datetime import date as dt
+from os.path import dirname, abspath
 
 global token
 global chat_id
-half_hour_check = time.time()  # used to check database for cleaning. Refer to check_in_db() docum for more.
+half_hour_check = time()  # used to check database for cleaning. Refer to check_in_db() docum for more.
 
-basedir = os.path.dirname(os.path.abspath(__file__))
+basedir = dirname(abspath(__file__))
 database = basedir + '\\centers.db'
 
 
@@ -55,7 +57,7 @@ def create_db():
        sent (text): If vaccines A. Sent and B. More than 10, then 'Y', else 'N'
     """
 
-    con = sqlite3.connect(database)
+    con = connect(database)
     cur = con.cursor()
     # Create table
     table_create = '''CREATE TABLE IF NOT EXISTS center
@@ -76,7 +78,7 @@ def create_db():
     con.close()
 
 
-def check_in_db(center, txt):
+def check_in_db(center: dict, txt: str):
     """ Checks database if center is present; Updates if present.
     Args:
     ----------
@@ -90,28 +92,22 @@ def check_in_db(center, txt):
      'msg_id' (real): Message ID of the Telegram message sent
      'time_' (string) : Time when center was updated/inserted into DB
     """
-
-    flag_exists = False
-    msg_id = None
-    conn = sqlite3.connect(database)
+    conn = connect(database)
     exist = conn.execute("select * from center where center_id = ? and age_limit = ? and vaccine = ? and date = ?;",
                          (center["center_id"], center["min_age_limit"], center["vaccine"], center["date"])).fetchone()
     if not exist:
         # send a message when more than 10 vaccines are available
         if center["available_capacity"] >= 10:
-            msg_id = send_new_msg(center, txt)
+            msg_id = send_new_msg(txt)
             print("Doesn't exist in DB.Inserting into DB")
             insert_into_db(center, msg_id, conn)
             print("Inserted into DB")
 
         else:
             print("Less than 10 V's. No message sent. No insertion into DB.")
-
-        flag_exists = False
     else:
-        flag_exists = True
         print("Exists. Updating DB.")
-        time_ = time.strftime("%H:%M:%S", time.localtime())
+        time_ = strftime("%H:%M:%S", localtime())
         # if message sent but less than 10 available
         if exist[11] == 'Y' and center["available_capacity"] < 10:
             # sets msg_sent to N, sends final message saying less than 10 vaccines available.
@@ -129,7 +125,7 @@ def check_in_db(center, txt):
         elif exist[11] == 'N':
             # Sets sent msg to Y and updates other columns if more than 10 vaccines available
             if center["available_capacity"] >= 10:
-                msg_id = send_new_msg(center, txt)
+                msg_id = send_new_msg(txt)
                 conn.execute("UPDATE center SET fee = ?, capacity = ?, time = ?, "
                              "sent = ?, msg_id = ? where center_id = ? and age_limit = ? and date = ?;",
                              (center["fee"], center["available_capacity"], time_, 'Y', msg_id,
@@ -170,12 +166,12 @@ def cleaning_db():
     :return: Empty if No centers where sent_msg == 'Y'
     """
     global half_hour_check
-    current_time = time.time()  # get current time
+    current_time = time()  # get current time
     print(f"Time: {current_time}, {half_hour_check}")
     if current_time > half_hour_check:
-        current_time = time.time()
+        current_time = time()
         half_hour_check = current_time + 1800  # current time + 1/2 an hour
-        conn = sqlite3.connect(database)
+        conn = connect(database)
         ligne_centers = []
         ligne_dates = []
         exist = conn.execute("select * from center where sent = ?;", ('Y',)).fetchall()
@@ -195,15 +191,16 @@ def cleaning_db():
             try:
                 url = f"https://cdn-api.co-vin.in/api/v2/appointment/sessions/public/findByDistrict?district_id=" \
                       f"{dist_id}&date={date}"
-                response = requests.get(url, headers=browser_header)
+                response = get(url, headers=browser_header)
                 response.raise_for_status()
-            except requests.exceptions.HTTPError as errh:
+            except HTTPError as errh:
                 print("Http Error_2:", errh)
-            except requests.exceptions.ConnectionError as errc:
+                print(errh.response.text)
+            except ConnectionError as errc:
                 print("Error Connecting_2:", errc)
-            except requests.exceptions.Timeout as errt:
+            except Timeout as errt:
                 print("Timeout Error_2:", errt)
-            except requests.exceptions.RequestException as err:
+            except RequestException as err:
                 print("Oops: Something Else_2", err)
             else:
                 if response.ok:
@@ -256,7 +253,7 @@ def cleaning_db():
                                         # If slots are mismatched, ie not available status - then,
                                         # set fee & capacity = 0, sent to 'N'.
                                         print("API result missmatch")
-                                        time_ = time.strftime("%H:%M:%S", time.localtime())
+                                        time_ = strftime("%H:%M:%S", localtime())
                                         conn.execute("UPDATE center SET fee = ?, capacity = ?, time = ?, sent = ? "
                                                      "where center_id = ? and age_limit = ? and date = ?;", (0, 0,
                                                                                                              time_,
@@ -284,7 +281,7 @@ def cleaning_db():
             center = ligne_centers[k]
             center_id = center[1]
             msg_id = center[10]
-            time_ = time.strftime("%H:%M:%S", time.localtime())
+            time_ = strftime("%H:%M:%S", localtime())
             conn.execute(
                 "UPDATE center SET fee = ?, capacity = ?, time = ?, sent = ? where "
                 "center_id = ?;", (0, 0, time_, 'N', center_id))
@@ -311,7 +308,7 @@ def cleaning_db():
         print("DB cleaning over.")
 
 
-def insert_into_db(center, msg_id, conn):
+def insert_into_db(center: dict, msg_id: int, conn: sqlite3.Connection):
     """Inserts a new center into DB
 
     Parameters:
@@ -325,7 +322,7 @@ def insert_into_db(center, msg_id, conn):
     -----------
     'time_' (string) : Time when center was inserted into DB
     """
-    time_ = time.strftime("%H:%M:%S", time.localtime())
+    time_ = strftime("%H:%M:%S", localtime())
     val = (center["date"], center["center_id"], center["name"], center["block_name"], center["pincode"],
            center["min_age_limit"], center["vaccine"], center["fee"], center["available_capacity"], time_, msg_id, 'Y')
 
@@ -334,30 +331,38 @@ def insert_into_db(center, msg_id, conn):
     conn.commit()
 
 
-def send_new_msg(center, txt):
+def send_new_msg(txt: str) -> int:
     """Sends a new message to the Telegram Group
     Sends text message when availability of vaccine >= 10
     Parameters:
     -----------
-    :param center: Json string. Has details of a particular center. Not currently used.
     :param txt: Text that to be sent
     :return: Message ID of the message sent
     """
 
-    #    if center["available_capacity"] >= 10:
+    message_id = None
     to_url = 'https://api.telegram.org/bot{}/sendMessage?chat_id={}&text={}&parse_mode=HTML'.format(token, chat_id, txt)
     try:
-        resp = requests.get(to_url)
-    except Exception:  # too broad, yes
-        print("Telegram message have not been sent\n")
-    else:
+        resp = get(to_url)
         print("Telegram message have been sent\n")
         json = resp.json()
         message_id = json["result"]["message_id"]
+    except ConnectionError as e:
+        print(f'Connection error: {e}')
+        print("Telegram message have not been sent.")
+    except Timeout as e:
+        print(f'Timeout error {e}')
+        print("Telegram message have not been sent.")
+    except RequestException as err:
+        print("Oops: Something Else", err)
+        print("Telegram message have not been sent.")
+    except KeyError as e:
+        print(f'Key error {e}')
+    finally:
         return message_id
 
 
-def replyto_msg(txt, msg_id):
+def replyto_msg(txt: str, msg_id: int) -> int:
     """Can be either update or last final message for a center.
 
     Sent when 1. Age limit has been changed or
@@ -369,15 +374,24 @@ def replyto_msg(txt, msg_id):
     :param txt: Text to be sent
     :param msg_id: Message ID of the original message so as to reply to that message.
     """
-
+    message_id = None
     to_url = 'https://api.telegram.org/bot{}/sendMessage?chat_id={}&text={}&reply_to_message_id={}&parse_mode=' \
              'HTML'.format(token, chat_id, txt, msg_id)
     try:
-        resp = requests.get(to_url)
-    except Exception:  # too broad, yes
-        print("Telegram message have not been sent.")
-    else:
+        resp = get(to_url)
         print("Telegram message have been sent.")
         json = resp.json()
         message_id = json["result"]["message_id"]
+    except ConnectionError as e:
+        print(f'Connection error: {e}')
+        print("Telegram message have not been sent.")
+    except Timeout as e:
+        print(f'Timeout error {e}')
+        print("Telegram message have not been sent.")
+    except RequestException as err:
+        print("Oops: Something Else", err)
+        print("Telegram message have not been sent.")
+    except KeyError as e:
+        print(f'Key error {e}')
+    finally:
         return message_id
